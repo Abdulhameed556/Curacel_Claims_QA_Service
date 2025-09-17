@@ -1,0 +1,45 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  json:
+    format: '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "message": "%(message)s", "module": "%(module)s", "function": "%(funcName)s", "line": %(lineno)d}'
+    datefmt: '%Y-%m-%dT%H:%M:%S'
+  
+  simple:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: json
+    stream: ext://sys.stdout
+  
+  file:
+    class: logging.FileHandler
+    level: DEBUG
+    formatter: json
+    filename: curacel-claims-qa.log
+    mode: 'a'
+
+root:
+  level: INFO
+  handlers: [console]
+
+loggers:
+  src:
+    level: DEBUG
+    handlers: [console]
+    propagate: false
+  
+  uvicorn:
+    level: WARNING
+    handlers: [console]
+    propagate: false
+  
+  PIL:
+    level: WARNING
+    handlers: [console]
+    propagate: false

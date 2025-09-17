@@ -1,0 +1,52 @@
+# Curacel Claims QA Service Configuration
+
+app:
+  name: "Curacel Claims QA Service"
+  version: "1.0.0"
+  debug: false
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+
+# Gemini Vision API Configuration
+gemini:
+  api_key: null  # Set via environment variable GEMINI_API_KEY
+  timeout: 30
+  max_retries: 3
+
+# OCR Configuration
+ocr:
+  fallback_enabled: true
+  max_file_size_mb: 10
+  supported_formats:
+    - jpg
+    - jpeg
+    - png
+    - pdf
+    - bmp
+    - tiff
+
+# Storage Configuration (In-Memory)
+storage:
+  type: "in_memory"
+  max_documents: 1000
+  cleanup_after_hours: 24
+
+# Processing Configuration
+processing:
+  ask_delay_seconds: 2  # Hidden requirement
+  max_processing_time_seconds: 60
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"
+  file_logging: false
+
+# Monitoring Configuration
+monitoring:
+  metrics_enabled: true
+  health_checks_enabled: true
+  detailed_health_checks: true
