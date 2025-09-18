@@ -5,13 +5,10 @@ Data extraction service for parsing OCR text into structured claim data.
 
 import re
 import time
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
 from datetime import datetime
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from monitoring.prometheus_metrics import EXTRACTION_DURATION
 
+from monitoring.prometheus_metrics import EXTRACTION_DURATION
 from src.core.logging_config import get_logger
 from src.core.exceptions import ExtractionError
 from src.utils.helpers import format_currency, safe_extract_text_field
@@ -57,14 +54,17 @@ def extract_claim_data(ocr_text: str) -> Dict[str, Any]:
         # Record extraction processing time
         duration = time.time() - start_time
         EXTRACTION_DURATION.observe(duration)
-        logger.info(f"Claim data extraction completed successfully in {duration:.2f} seconds")
+        logger.info(
+            "Claim data extraction completed successfully in %.2f seconds",
+            duration,
+        )
         return claim_data
         
     except Exception as e:
         # Still record the time even for failed processing
         duration = time.time() - start_time
         EXTRACTION_DURATION.observe(duration)
-        logger.error(f"Claim data extraction failed: {str(e)}")
+        logger.error("Claim data extraction failed: %s", str(e))
         raise ExtractionError(f"Failed to extract claim data: {str(e)}")
 
 
@@ -73,7 +73,8 @@ def _clean_ocr_text(text: str) -> str:
     # Remove extra whitespace and normalize line breaks
     cleaned = re.sub(r'\s+', ' ', text.strip())
     # Fix common OCR mistakes
-    cleaned = cleaned.replace('|', 'I').replace('0', 'O', )  # Common OCR errors
+    # Common OCR errors
+    cleaned = cleaned.replace('|', 'I').replace('0', 'O')
     return cleaned
 
 
@@ -136,10 +137,14 @@ def _extract_diagnoses(text: str) -> List[str]:
             diagnosis_text = match.group(1).strip()
             # Split by common delimiters
             conditions = re.split(r'[,;]\s*', diagnosis_text)
-            diagnoses.extend([d.strip().title() for d in conditions if d.strip()])
+            diagnoses.extend(
+                [d.strip().title() for d in conditions if d.strip()]
+            )
     
     # Common medical conditions to look for
-    common_conditions = ['malaria', 'fever', 'headache', 'typhoid', 'flu', 'cold', 'infection']
+    common_conditions = [
+        'malaria', 'fever', 'headache', 'typhoid', 'flu', 'cold', 'infection'
+    ]
     
     for condition in common_conditions:
         if re.search(rf'\b{condition}\b', text, re.IGNORECASE):
@@ -178,7 +183,9 @@ def _extract_medications(text: str) -> List[Dict[str, str]]:
             })
     
     # Look for common medications mentioned
-    common_meds = ['paracetamol', 'ibuprofen', 'artemether', 'lumefantrine', 'aspirin']
+    common_meds = [
+        'paracetamol', 'ibuprofen', 'artemether', 'lumefantrine', 'aspirin'
+    ]
     
     for med in common_meds:
         if re.search(rf'\b{med}\b', text, re.IGNORECASE):
@@ -191,7 +198,11 @@ def _extract_medications(text: str) -> List[Dict[str, str]]:
     
     # Default fallback
     if not medications:
-        medications = [{"name": "Paracetamol", "dosage": "500mg", "quantity": "10 tablets"}]
+        medications = [{
+            "name": "Paracetamol",
+            "dosage": "500mg",
+            "quantity": "10 tablets",
+        }]
     
     return medications
 
@@ -217,7 +228,9 @@ def _extract_procedures(text: str) -> List[str]:
             procedures.extend([p.strip().title() for p in procs if p.strip()])
     
     # Look for common procedures
-    common_procedures = ['malaria test', 'blood test', 'rapid test', 'x-ray', 'consultation']
+    common_procedures = [
+        'malaria test', 'blood test', 'rapid test', 'x-ray', 'consultation'
+    ]
     
     for proc in common_procedures:
         if re.search(rf'\b{proc}\b', text, re.IGNORECASE):
@@ -299,7 +312,10 @@ def _normalize_date(date_str: str) -> str:
     """Normalize date string to YYYY-MM-DD format."""
     try:
         # Try different date formats
-        formats = ['%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y', '%m-%d-%Y', '%d/%m/%y', '%m/%d/%y']
+        formats = [
+            '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y',
+            '%m-%d-%Y', '%d/%m/%y', '%m/%d/%y',
+        ]
         
         for fmt in formats:
             try:

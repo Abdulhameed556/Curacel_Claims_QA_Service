@@ -1,6 +1,6 @@
 # Curacel Claims QA Service
 
-![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![Python](https://img.shields.io/badge/python-3.9–3.11-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-blue.svg)
@@ -49,15 +49,24 @@ User Query  ──> /ask     ──> [QA Service (2s delay + override)] ──�
 
 ## 🚀 Quick Start
 
+### Python version
+- Supported: 3.9, 3.10, 3.11 (CI runs on all three)
+- Recommended: 3.11 for best compatibility and performance
+
 ### 1. Environment Setup
 ```bash
 # Clone the repository
-git clone https://github.com/Abdulhameed556/Curacel-_Claims_QA_Service
+git clone https://github.com/Abdulhameed556/Curacel_Claims_QA_Service
 cd Curacel-Claims-QA
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Create virtual environment (choose one of the following)
+# macOS/Linux
+python3.11 -m venv .venv
+source .venv/bin/activate
+
+# Windows (PowerShell)
+py -3.11 -m venv .venv
+./.venv/Scripts/Activate.ps1
 
 # Install dependencies
 pip install -r requirements.txt
@@ -110,6 +119,7 @@ curl -X POST "http://localhost:8000/ask" \
 ```json
 {
   "document_id": "abc123-def456",
+  "ocr_mode": "demo_fallback",
   "patient": {
     "name": "Jane Doe",
     "age": 34
@@ -128,7 +138,13 @@ curl -X POST "http://localhost:8000/ask" \
     "admission_date": "2023-06-10",
     "discharge_date": "2023-06-12"
   },
-  "total_amount": "₦15,000"
+  "total_amount": "₦15,000",
+  "_metadata": {
+    "document_id": "abc123-def456",
+    "created_at": "2023-06-10T12:34:56.789Z",
+    "last_accessed": "2023-06-10T12:34:56.789Z",
+    "access_count": 0
+  }
 }
 ```
 

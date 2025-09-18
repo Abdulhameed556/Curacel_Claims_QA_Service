@@ -4,14 +4,14 @@ In-memory storage service for claim data.
 In production, this would be replaced with a proper database.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from datetime import datetime
 import threading
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from monitoring.prometheus_metrics import DOCUMENTS_PROCESSED, DOCUMENTS_IN_STORAGE
 
+from monitoring.prometheus_metrics import (
+    DOCUMENTS_IN_STORAGE,
+    DOCUMENTS_PROCESSED,
+)
 from src.core.logging_config import get_logger
 from src.core.exceptions import DocumentNotFoundError
 
@@ -22,8 +22,10 @@ _CLAIM_STORE: Dict[str, Dict[str, Any]] = {}
 _STORAGE_LOCK = threading.Lock()
 
 
-def store_claim(document_id: str, claim_data: Dict[str, Any]) -> None:
-    """Store claim data in memory with metadata."""
+def store_claim(
+    document_id: str, claim_data: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Store claim data in memory with metadata and return enriched data."""
     with _STORAGE_LOCK:
         enriched_data = {
             **claim_data,
@@ -39,8 +41,8 @@ def store_claim(document_id: str, claim_data: Dict[str, Any]) -> None:
         # Update metrics
         DOCUMENTS_PROCESSED.inc()
         DOCUMENTS_IN_STORAGE.set(len(_CLAIM_STORE))
-        
-        logger.info(f"Stored claim data for document_id: {document_id}")
+        logger.info("Stored claim data for document_id: %s", document_id)
+    return enriched_data
 
 
 def get_claim(document_id: str) -> Dict[str, Any]:
@@ -48,15 +50,18 @@ def get_claim(document_id: str) -> Dict[str, Any]:
     with _STORAGE_LOCK:
         claim_data = _CLAIM_STORE.get(document_id)
         if not claim_data:
-            logger.warning(f"Document not found: {document_id}")
-            raise DocumentNotFoundError(f"Document with ID '{document_id}' not found")
+            logger.warning("Document not found: %s", document_id)
+            raise DocumentNotFoundError(
+                f"Document with ID '{document_id}' not found"
+            )
         
         # Update metadata
-        claim_data["_metadata"]["last_accessed"] = datetime.utcnow().isoformat()
+        claim_data["_metadata"]["last_accessed"] = (
+            datetime.utcnow().isoformat()
+        )
         claim_data["_metadata"]["access_count"] += 1
-        
-        logger.info(f"Retrieved claim data for document_id: {document_id}")
-        return claim_data
+    logger.info("Retrieved claim data for document_id: %s", document_id)
+    return claim_data
 
 
 def delete_claim(document_id: str) -> bool:
@@ -64,11 +69,13 @@ def delete_claim(document_id: str) -> bool:
     with _STORAGE_LOCK:
         if document_id in _CLAIM_STORE:
             del _CLAIM_STORE[document_id]
-            DOCUMENTS_IN_STORAGE.set(len(_CLAIM_STORE))  # keep metrics accurate
-            logger.info(f"Deleted claim data for document_id: {document_id}")
+            DOCUMENTS_IN_STORAGE.set(len(_CLAIM_STORE))
+            logger.info("Deleted claim data for document_id: %s", document_id)
             return True
         else:
-            logger.warning(f"Cannot delete, document not found: {document_id}")
+            logger.warning(
+                "Cannot delete, document not found: %s", document_id
+            )
             return False
 
 
@@ -105,7 +112,9 @@ def get_storage_stats() -> Dict[str, Any]:
             "oldest_document": min(creation_times) if creation_times else None,
             "newest_document": max(creation_times) if creation_times else None,
             "total_access_count": sum(access_counts),
-            "avg_access_count": sum(access_counts) / len(access_counts) if access_counts else 0
+            "avg_access_count": (
+                sum(access_counts) / len(access_counts) if access_counts else 0
+            )
         }
 
 
@@ -114,9 +123,9 @@ def clear_all_claims() -> int:
     with _STORAGE_LOCK:
         count = len(_CLAIM_STORE)
         _CLAIM_STORE.clear()
-        DOCUMENTS_IN_STORAGE.set(0)  # reset metric
-        logger.warning(f"Cleared all claim data ({count} documents)")
-        return count
+        DOCUMENTS_IN_STORAGE.set(0)
+        logger.warning("Cleared all claim data (%d documents)", count)
+    return count
 
 
 def document_exists(document_id: str) -> bool:

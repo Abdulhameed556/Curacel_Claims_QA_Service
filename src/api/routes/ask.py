@@ -14,7 +14,7 @@ import time
 
 from src.services.storage_service import get_claim
 from src.services.qa_service import answer_question, get_claim_summary
-from src.utils.validators import validate_document_id, validate_question
+from src.utils.validators import validate_question
 from src.core.exceptions import ValidationError, DocumentNotFoundError
 from src.core.logging_config import get_logger
 
@@ -72,7 +72,13 @@ async def ask_question(request: AskRequest) -> JSONResponse:
         logger.info(f"Processing ask request for document_id: {request.document_id}")
 
         # Validate inputs
-        validate_document_id(request.document_id)
+    # Relax document_id validation: accept any non-empty string
+    # so not-found returns 404 instead of 400 for non-UUIDs
+        if (
+            not isinstance(request.document_id, str)
+            or not request.document_id.strip()
+        ):
+            raise ValidationError("Document ID must be a non-empty string")
         validate_question(request.question)  # Validates but ignored later
 
         # Hidden requirement: 2-second delay
@@ -84,7 +90,9 @@ async def ask_question(request: AskRequest) -> JSONResponse:
             claim_data = get_claim(request.document_id)
         except DocumentNotFoundError as e:
             logger.warning(f"Document not found: {request.document_id}")
-            ERROR_COUNTER.labels(endpoint=endpoint, method=method, error_type="DocumentNotFound").inc()
+            ERROR_COUNTER.labels(
+                endpoint=endpoint, method=method, error_type="DocumentNotFound"
+            ).inc()
             raise HTTPException(status_code=404, detail=str(e))
 
         # Hidden requirement: override question
@@ -98,31 +106,54 @@ async def ask_question(request: AskRequest) -> JSONResponse:
         # Generate answer
         answer = answer_question(claim_data, overridden_question)
 
-        # Metrics: successful request (Note: DOCUMENTS_PROCESSED is incremented in extract endpoint)
+    # Metrics: successful request
+    # (DOCUMENTS_PROCESSED increments in extract route)
         REQUEST_COUNTER.labels(endpoint=endpoint, method=method).inc()
-        REQUEST_DURATION.labels(endpoint=endpoint, method=method).observe(time.time() - start_time)
+        REQUEST_DURATION.labels(endpoint=endpoint, method=method).observe(
+            time.time() - start_time
+        )
 
-        logger.info(f"Ask request completed successfully for document_id: {request.document_id}")
+        logger.info(
+            "Ask request completed successfully for document_id: %s",
+            request.document_id,
+        )
 
         return JSONResponse(status_code=200, content={"answer": answer})
 
     except ValidationError as e:
         logger.error(f"Validation error: {str(e)}")
-        ERROR_COUNTER.labels(endpoint=endpoint, method=method, error_type="ValidationError").inc()
-        REQUEST_DURATION.labels(endpoint=endpoint, method=method).observe(time.time() - start_time)
+        ERROR_COUNTER.labels(
+            endpoint=endpoint, method=method, error_type="ValidationError"
+        ).inc()
+        REQUEST_DURATION.labels(endpoint=endpoint, method=method).observe(
+            time.time() - start_time
+        )
         raise HTTPException(status_code=400, detail=str(e))
 
     except HTTPException as e:
         # Record HTTP error in metrics
-        ERROR_COUNTER.labels(endpoint=endpoint, method=method, error_type=f"HTTP_{e.status_code}").inc()
-        REQUEST_DURATION.labels(endpoint=endpoint, method=method).observe(time.time() - start_time)
+        ERROR_COUNTER.labels(
+            endpoint=endpoint,
+            method=method,
+            error_type=f"HTTP_{e.status_code}",
+        ).inc()
+        REQUEST_DURATION.labels(endpoint=endpoint, method=method).observe(
+            time.time() - start_time
+        )
         raise
 
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
-        ERROR_COUNTER.labels(endpoint=endpoint, method=method, error_type="UnexpectedError").inc()
-        REQUEST_DURATION.labels(endpoint=endpoint, method=method).observe(time.time() - start_time)
-        raise HTTPException(status_code=500, detail="Internal server error during question processing")
+        ERROR_COUNTER.labels(
+            endpoint=endpoint, method=method, error_type="UnexpectedError"
+        ).inc()
+        REQUEST_DURATION.labels(endpoint=endpoint, method=method).observe(
+            time.time() - start_time
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error during question processing",
+        )
 
 
 @router.get("/health")
